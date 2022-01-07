@@ -105,7 +105,7 @@ async fn serve_http(req: Request<AppState>) -> tide::Result {
 #[async_std::main]
 async fn main() -> anyhow::Result<()> {
     log::start();
-    let output_dir = PathBuf::from(std::env::var("HLS_DIR").unwrap());
+    let output_dir = PathBuf::from(std::env::var("HLS_DIR").expect("HLS_DIR to be present"));
 
     let mut app = tide::with_state(AppState {
         cmd_tx: wait_and_serve_ffmpeg(&output_dir)?,

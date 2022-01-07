@@ -8,6 +8,5 @@ edition = "2021"
 [dependencies]
 async-std = { version = "1", features = ["attributes", "async-process", "unstable"] }
 futures = "0"
-serde = { version="1", features = ["derive"] }
 tide = "0"
 anyhow = "1"

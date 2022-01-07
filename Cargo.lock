@@ -769,7 +769,6 @@ dependencies = [
  "anyhow",
  "async-std",
  "futures",
- "serde",
  "tide",
 ]
 
