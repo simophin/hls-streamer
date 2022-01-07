@@ -115,6 +115,11 @@ async fn main() -> anyhow::Result<()> {
     app.at("/").get(serve_http);
     app.at("/*").get(serve_http);
 
-    app.listen("127.0.0.1:8989").await?;
+    app.listen(format!(
+        "{}:{}",
+        std::env::var("LISTEN_ADDRESS").unwrap_or("127.0.0.1".to_string()),
+        std::env::var("LISTEN_PORT").unwrap_or("8989".to_string()),
+    ))
+    .await?;
     Ok(())
 }

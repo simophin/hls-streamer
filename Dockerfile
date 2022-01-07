@@ -13,5 +13,9 @@ COPY --from=0 /build/target/release/hls-streamer ./
 
 ENV FFMPEG_INPUT=""
 ENV HLS_DIR="/data"
+ENV LISTEN_ADDRESS="0.0.0.0"
+ENV LISTEN_PORT=8989
+
+EXPOSE 8989
 
 ENTRYPOINT /app/hls-streamer
