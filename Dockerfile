@@ -5,9 +5,7 @@ WORKDIR /build
 COPY . ./
 RUN cargo build --release
 
-
-ARG FFMPEG_TAG=3-vaapi
-FROM jrottenberg/ffmpeg:${FFMPEG_TAG}
+FROM jrottenberg/ffmpeg:3-vaapi
 
 RUN mkdir /app
 WORKDIR /app
