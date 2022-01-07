@@ -38,7 +38,7 @@ jobs:
 
       - name: Build and push Docker image
         if: github.event_name != 'pull_request'
-        run: ./build_docker.sh
+        run: ./build_dockers.sh
 
       - name: Build docker image
         if: github.event_name == 'pull_request'
