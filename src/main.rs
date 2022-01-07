@@ -12,9 +12,10 @@ use tide::{log, Body, Request, Response, StatusCode};
 
 type KeepAlive = ();
 
-const SLEEP_DURATION: Duration = Duration::from_secs(10);
-
-fn wait_and_serve_ffmpeg(output_dir: &Path) -> anyhow::Result<Sender<KeepAlive>> {
+fn wait_and_serve_ffmpeg(
+    output_dir: &Path,
+    timeout: Duration,
+) -> anyhow::Result<Sender<KeepAlive>> {
     let output_file = output_dir.join("master.m3u8");
 
     let (keepalive_tx, mut keepalive_rx) = new_channel::<KeepAlive>(2);
@@ -33,6 +34,8 @@ fn wait_and_serve_ffmpeg(output_dir: &Path) -> anyhow::Result<Sender<KeepAlive>>
                 "-f",
                 "hls",
                 "-hls_time",
+                "2",
+                "-hls_list_size",
                 "5",
                 "-hls_flags",
                 "delete_segments+append_list",
@@ -62,7 +65,7 @@ fn wait_and_serve_ffmpeg(output_dir: &Path) -> anyhow::Result<Sender<KeepAlive>>
                         log::info!("Keeping alive");
                     }
 
-                     _ = sleep(SLEEP_DURATION).fuse() => {
+                     _ = sleep(timeout).fuse() => {
                         log::info!("Timeout!");
                         break;
                     }
@@ -91,6 +94,13 @@ async fn serve_http(req: Request<AppState>) -> tide::Result {
         s => s,
     };
 
+    if rel_path == "index.html" {
+        return Ok(Response::builder(StatusCode::Ok)
+            .content_type("text/html")
+            .body(Body::from(&include_bytes!("index.html")[0..]))
+            .build());
+    }
+
     let file_path = req.state().output_dir.join(rel_path);
     match Body::from_file(&file_path).await {
         Ok(body) => Ok(Response::builder(StatusCode::Ok).body(body).build()),
@@ -108,7 +118,15 @@ async fn main() -> anyhow::Result<()> {
     let output_dir = PathBuf::from(std::env::var("HLS_DIR").expect("HLS_DIR to be present"));
 
     let mut app = tide::with_state(AppState {
-        cmd_tx: wait_and_serve_ffmpeg(&output_dir)?,
+        cmd_tx: wait_and_serve_ffmpeg(
+            &output_dir,
+            Duration::from_secs(
+                std::env::var("TIMEOUT_SECONDS")
+                    .unwrap_or("120".to_string())
+                    .parse()
+                    .expect("TIMEOUT_SECONDS to be a number"),
+            ),
+        )?,
         output_dir,
     });
 
