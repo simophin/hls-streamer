@@ -37,6 +37,10 @@ You'll need to set up Rust toolchain first, see [rustup](https://rustup.rs/)
 $ cargo build --release
 ```
 
+You'll also need to have ffmpeg>4.0 installed to use the app. 
+
+Only Linux system is tested at this time.
+
 ## Configuration
 
 ### Environment varaiables
