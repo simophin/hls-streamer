@@ -3,7 +3,7 @@ Stream your heart's content with HLS. The HLS serving process will only start wh
 
 
 ## Movtivation
-I've got a CCTV camera from aliexpress, I know I can use [ffmpeg hls demuxer](https://ffmpeg.org/ffmpeg-formats.html#hls-2) 
+I've got a CCTV camera from AliExpress, I know I can use [ffmpeg hls demuxer](https://ffmpeg.org/ffmpeg-formats.html#hls-2) 
 to split up the stream into HLS segments and serve nginx over the files to make an HLS stream.
 
 But then I learned that my camera can only do H265 stream, while HLS supports H265, no mainstream browsers support H265 natively.
@@ -18,7 +18,7 @@ separate process and take whatever it needs though.
 * Streaming stops automatically when the access stops.
 * Comes with a simple http server and it's ready to use.
 
-## Usage
+## Installation
 
 ### Docker
 
@@ -26,7 +26,50 @@ For an onvif compatible camera, we can use its rtsp stream.
 
 ```bash
 $ docker run -d \
-  -e FFMPEG_INPUT="-i -rtsp_transport tcp -i rtsp://NAME:PASSWORD@CAMERA_IP/onvif2"
+  -e FFMPEG_INPUT="-rtsp_transport tcp -i rtsp://NAME:PASSWORD@CAMERA_IP/onvif2"
   ghcr.io/simophin/hls-streamer
 ```
 
+### Build from source
+
+You'll need to set up Rust toolchain first, see [rustup](https://rustup.rs/)
+
+```bash
+$ cargo build --release
+```
+
+## Usage
+
+Once you run the app, by default, you will have these two links:
+
+`http://localhost:8989` -> a simple webpage showing the HLS stream
+
+`http://localhost:8989/master.m3u8` -> the HLS playlist itself
+
+The playlist file request will be withheld until the playlist file is generated. This
+is to avoid the first time you access the playlist because ffmpeg is not ready and you'd have
+got a 404 for that file.
+
+## Configuration
+
+### Environment varaiables
+
+| Name            | Default value | Description                                                                                                             |
+|-----------------|---------------|-------------------------------------------------------------------------------------------------------------------------|
+| FFMPEG_INPUT    |               | FFMPEG input parameters.  e.g. `-rtsp_transport tcp -i rtsp://NAME:PASSWORD@CAMERA_IP/onvif2`. See below for examples. |
+| HLS_DIR         | /data         | HLS data storage directory. It's recommended to use a  memory based system like tmpfs to avoid frequent write to disks. |
+| LISTEN_ADDRESS  | 0.0.0.0       | Http server listening address                                                                                           |
+| LISTEN_PORT     | 8989          | Http server listening port                                                                                              |
+| TIMEOUT_SECONDS | 120           | The waiting time before a stream is considered idle.                                                                    |
+
+## Input examples
+
+These examples demostrate what you can put into `FFMPEG_INPUT` environment variable.
+
+### Copying the camera stream (i.e. no transcoding)
+
+`-rtsp_transport tcp -i rtsp://NAME:PASSWORD@CAMERA_IP/onvif2 -vf copy`
+
+### Hardware H264 encoding (VAAPI)
+
+`-vaapi_device /dev/dri/renderD128 -rtsp_transport tcp -i rtsp://NAME:PASSWORD@CAMERA_IP/onvif2 -vf format=nv12,hwupload -b:v 2M -c:v h264_vaapi`
