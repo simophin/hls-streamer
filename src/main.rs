@@ -1,3 +1,4 @@
+use std::ffi::OsStr;
 use std::io;
 use std::time::Duration;
 
@@ -11,6 +12,9 @@ use futures::{
 use tide::{log, Body, Request, Response, StatusCode};
 
 type KeepAlive = ();
+
+const PLAYLIST_WAIT_INTERVAL: Duration = Duration::from_secs(2);
+const PLAYLIST_WAIT_MAX_RETRIES: usize = 20;
 
 fn wait_and_serve_ffmpeg(
     output_dir: &Path,
@@ -105,6 +109,17 @@ async fn serve_http(req: Request<AppState>) -> tide::Result {
     }
 
     let file_path = req.state().output_dir.join(rel_path);
+
+    if file_path.file_name().and_then(OsStr::to_str) == Some("master.m3u8") {
+        // Wait until we have this file
+        let mut i = 0;
+        while !file_path.is_file().await && i < PLAYLIST_WAIT_MAX_RETRIES {
+            log::info!("Requesting playlist file but no list is generated. Waiting...");
+            sleep(PLAYLIST_WAIT_INTERVAL).await;
+            i = i + 1;
+        }
+    }
+
     match Body::from_file(&file_path).await {
         Ok(body) => Ok(Response::builder(StatusCode::Ok).body(body).build()),
         Err(e) if e.kind() == io::ErrorKind::NotFound => {
