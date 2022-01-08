@@ -5,7 +5,7 @@ WORKDIR /build
 COPY . ./
 RUN cargo build --release
 
-FROM jrottenberg/ffmpeg:3-vaapi
+FROM jrottenberg/ffmpeg:4-vaapi
 
 RUN mkdir /app
 WORKDIR /app
