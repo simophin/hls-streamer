@@ -43,6 +43,9 @@ fn wait_and_serve_ffmpeg(
 
             cmd.arg(&output_file);
             cmd.kill_on_drop(true);
+
+            let _ = std::fs::remove_file(&output_file);
+
             let mut child = match cmd.spawn() {
                 Ok(c) => {
                     log::info!("Child process started: {:?}", c);
