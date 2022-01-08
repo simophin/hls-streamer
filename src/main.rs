@@ -106,6 +106,11 @@ async fn serve_http(req: Request<AppState>) -> tide::Result {
     let file_path = req.state().output_dir.join(rel_path);
 
     match file_path.file_name().and_then(OsStr::to_str) {
+        Some(s) if s.ends_with(".tmp") => {
+            log::warn!("Trying to access temp file: {}", s);
+            return Ok(Response::builder(StatusCode::Forbidden).build());
+        }
+
         Some(PLAYLIST_FILE_NAME) => {
             // Wait until we have this file
             let mut i = 0;
@@ -121,11 +126,6 @@ async fn serve_http(req: Request<AppState>) -> tide::Result {
                 .content_type("text/html")
                 .body(Body::from(&include_bytes!("index.html")[0..]))
                 .build());
-        }
-
-        Some(s) if s.ends_with(".tmp") => {
-            log::warn!("Trying to access temp file: {}", s);
-            return Ok(Response::builder(StatusCode::Forbidden).build());
         }
 
         _ => {}
