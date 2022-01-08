@@ -1,5 +1,5 @@
 # hls-streamer
-Stream your heart's content with HLS. The HLS serving process will only start when someone accesses the stream!
+Stream your heart's content with HLS. 
 
 
 ## Movtivation
@@ -12,11 +12,10 @@ FFMPEG actually tries to transcode the video on the fly and it is a very expensi
 the stream should the transcoding start. 
 
 ## Highlight
-* Written in rust, minimal resource usage: the app itself takes <5K memory to run (on my machine). ffmpeg runs on
-separate process and take whatever it needs though.
-* Streaming only starts when someone tries to access to stream. 
-* Streaming stops automatically when the access stops.
-* Comes with a simple http server and it's ready to use.
+* Written in Rust, minimal resource usage: the app itself takes <5K memory to run[^1].
+* FFMPEG/transcoding only starts first time accessing the stream. 
+* FFMPEG/transcoding stops when access stops.
+* Comes with a simple web page: it's ready to view the result!
 
 ## Installation
 
@@ -38,18 +37,6 @@ You'll need to set up Rust toolchain first, see [rustup](https://rustup.rs/)
 $ cargo build --release
 ```
 
-## Usage
-
-Once you run the app, by default, you will have these two links:
-
-`http://localhost:8989` -> a simple webpage showing the HLS stream
-
-`http://localhost:8989/master.m3u8` -> the HLS playlist itself
-
-The playlist file request will be withheld until the playlist file is generated. This
-is to avoid the first time you access the playlist because ffmpeg is not ready and you'd have
-got a 404 for that file.
-
 ## Configuration
 
 ### Environment varaiables
@@ -62,6 +49,19 @@ got a 404 for that file.
 | LISTEN_PORT     | 8989          | Http server listening port                                                                                              |
 | TIMEOUT_SECONDS | 120           | The waiting time before a stream is considered idle.                                                                    |
 
+## Usage
+
+Once you have the app running, by default, you will have these two links:
+
+`http://localhost:8989` -> a simple webpage showing the HLS stream
+
+`http://localhost:8989/master.m3u8` -> the HLS playlist itself
+
+The playlist file request will be withheld until the playlist file is generated. This
+is to avoid the first time you access the playlist because ffmpeg is not ready and you'd have
+got a 404 for that file.
+
+
 ## Input examples
 
 These examples demostrate what you can put into `FFMPEG_INPUT` environment variable.
@@ -73,3 +73,6 @@ These examples demostrate what you can put into `FFMPEG_INPUT` environment varia
 ### Hardware H264 encoding (VAAPI)
 
 `-vaapi_device /dev/dri/renderD128 -rtsp_transport tcp -i rtsp://NAME:PASSWORD@CAMERA_IP/onvif2 -vf format=nv12,hwupload -b:v 2M -c:v h264_vaapi`
+
+
+[^1]: The measurement was indicative only. FFMPEG process is excluded.
