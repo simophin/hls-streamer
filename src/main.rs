@@ -15,12 +15,14 @@ type KeepAlive = ();
 
 const PLAYLIST_WAIT_INTERVAL: Duration = Duration::from_secs(2);
 const PLAYLIST_WAIT_MAX_RETRIES: usize = 20;
+const PLAYLIST_FILE_NAME: &'static str = "master.m3u8";
+const INDEX_FILE_NAME: &'static str = "index.html";
 
 fn wait_and_serve_ffmpeg(
     output_dir: &Path,
     timeout: Duration,
 ) -> anyhow::Result<Sender<KeepAlive>> {
-    let output_file = output_dir.join("master.m3u8");
+    let output_file = output_dir.join(PLAYLIST_FILE_NAME);
 
     let (keepalive_tx, mut keepalive_rx) = new_channel::<KeepAlive>(2);
     spawn(async move {
@@ -42,7 +44,7 @@ fn wait_and_serve_ffmpeg(
                 "-hls_list_size",
                 "5",
                 "-hls_flags",
-                "delete_segments+append_list",
+                "delete_segments+append_list+temp_file",
             ]);
 
             cmd.arg(&output_file);
@@ -96,28 +98,37 @@ async fn serve_http(req: Request<AppState>) -> tide::Result {
     let _ = req.state().cmd_tx.clone().send(()).await;
 
     let rel_path = match req.url().path() {
-        s if s == "/" => "index.html",
+        s if s == "/" => INDEX_FILE_NAME,
         s if s.starts_with("/") => &s[1..],
         s => s,
     };
 
-    if rel_path == "index.html" {
-        return Ok(Response::builder(StatusCode::Ok)
-            .content_type("text/html")
-            .body(Body::from(&include_bytes!("index.html")[0..]))
-            .build());
-    }
-
     let file_path = req.state().output_dir.join(rel_path);
 
-    if file_path.file_name().and_then(OsStr::to_str) == Some("master.m3u8") {
-        // Wait until we have this file
-        let mut i = 0;
-        while !file_path.is_file().await && i < PLAYLIST_WAIT_MAX_RETRIES {
-            log::info!("Requesting playlist file but no list is generated. Waiting...");
-            sleep(PLAYLIST_WAIT_INTERVAL).await;
-            i = i + 1;
+    match file_path.file_name().and_then(OsStr::to_str) {
+        Some(PLAYLIST_FILE_NAME) => {
+            // Wait until we have this file
+            let mut i = 0;
+            while !file_path.is_file().await && i < PLAYLIST_WAIT_MAX_RETRIES {
+                log::info!("Requesting playlist file but no list is generated. Waiting...");
+                sleep(PLAYLIST_WAIT_INTERVAL).await;
+                i = i + 1;
+            }
         }
+
+        Some(INDEX_FILE_NAME) => {
+            return Ok(Response::builder(StatusCode::Ok)
+                .content_type("text/html")
+                .body(Body::from(&include_bytes!("index.html")[0..]))
+                .build());
+        }
+
+        Some(s) if s.ends_with(".tmp") => {
+            log::warn!("Trying to access temp file: {}", s);
+            return Ok(Response::builder(StatusCode::Forbidden).build());
+        }
+
+        _ => {}
     }
 
     match Body::from_file(&file_path).await {
