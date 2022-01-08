@@ -64,8 +64,16 @@ volumes:
 
 You'll need to set up Rust toolchain first, see [rustup](https://rustup.rs/)
 
+Clone the source and build
+
 ```bash
 $ cargo build --release
+```
+
+Once built, you can run via:
+
+```bash
+$ FFMPEG_INPUT=xxx ./target/release/hls-streamer
 ```
 
 You'll also need to have ffmpeg>4.0 installed to use the app. 
