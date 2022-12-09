@@ -15,8 +15,8 @@ type KeepAlive = ();
 
 const PLAYLIST_WAIT_INTERVAL: Duration = Duration::from_secs(2);
 const PLAYLIST_WAIT_MAX_RETRIES: usize = 20;
-const PLAYLIST_FILE_NAME: &'static str = "master.m3u8";
-const INDEX_FILE_NAME: &'static str = "index.html";
+const PLAYLIST_FILE_NAME: &str = "master.m3u8";
+const INDEX_FILE_NAME: &str = "index.html";
 
 fn wait_and_serve_ffmpeg(
     output_dir: &Path,
@@ -26,17 +26,14 @@ fn wait_and_serve_ffmpeg(
 
     let (keepalive_tx, mut keepalive_rx) = new_channel::<KeepAlive>(2);
     spawn(async move {
-        while let Some(_) = keepalive_rx.next().await {
+        while keepalive_rx.next().await.is_some() {
             let mut cmd = Command::new("ffmpeg");
 
-            for opt in std::env::var("FFMPEG_INPUT")
-                .unwrap_or(String::new())
-                .split(" ")
-            {
+            for opt in std::env::var("FFMPEG_INPUT").unwrap_or_default().split(' ') {
                 cmd.arg(opt);
             }
 
-            cmd.args(&[
+            cmd.args([
                 "-f",
                 "hls",
                 "-hls_time",
@@ -99,9 +96,13 @@ async fn serve_http(req: Request<AppState>) -> tide::Result {
 
     let rel_path = match req.url().path() {
         s if s == "/" => INDEX_FILE_NAME,
-        s if s.starts_with("/") => &s[1..],
+        s if s.starts_with('/') => &s[1..],
         s => s,
     };
+
+    if rel_path.contains("..") {
+        return Ok(Response::builder(StatusCode::Forbidden).build());
+    }
 
     let file_path = req.state().output_dir.join(rel_path);
 
@@ -117,7 +118,7 @@ async fn serve_http(req: Request<AppState>) -> tide::Result {
             while !file_path.is_file().await && i < PLAYLIST_WAIT_MAX_RETRIES {
                 log::info!("Requesting playlist file but no list is generated. Waiting...");
                 sleep(PLAYLIST_WAIT_INTERVAL).await;
-                i = i + 1;
+                i += 1;
             }
         }
 
@@ -151,7 +152,7 @@ async fn main() -> anyhow::Result<()> {
             &output_dir,
             Duration::from_secs(
                 std::env::var("TIMEOUT_SECONDS")
-                    .unwrap_or("120".to_string())
+                    .unwrap_or_else(|_| "120".to_string())
                     .parse()
                     .expect("TIMEOUT_SECONDS to be a number"),
             ),
@@ -164,8 +165,8 @@ async fn main() -> anyhow::Result<()> {
 
     app.listen(format!(
         "{}:{}",
-        std::env::var("LISTEN_ADDRESS").unwrap_or("127.0.0.1".to_string()),
-        std::env::var("LISTEN_PORT").unwrap_or("8989".to_string()),
+        std::env::var("LISTEN_ADDRESS").unwrap_or_else(|_| "127.0.0.1".to_string()),
+        std::env::var("LISTEN_PORT").unwrap_or_else(|_| "8989".to_string()),
     ))
     .await?;
     Ok(())
