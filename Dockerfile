@@ -1,11 +1,11 @@
-FROM rust
+FROM docker.io/rust:alpine
 
 RUN mkdir /build
 WORKDIR /build
 COPY . ./
 RUN cargo build --release
 
-FROM jrottenberg/ffmpeg:4-vaapi
+FROM docker.io/jrottenberg/ffmpeg:4-vaapi
 
 RUN mkdir /app
 WORKDIR /app
